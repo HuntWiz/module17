@@ -18,9 +18,18 @@ async def all_users(db: Annotated[Session, Depends(get_db)]):
 
 @router.get('/user_id')
 async def user_by_id(user_id:int, db: Annotated[Session, Depends(get_db)]):
-    user = db.execute(select(User).where(User.id == user_id))
+    user = db.scalar(select(User).where(User.id == user_id))
     if user is not None:
         return user
+    else:
+        raise HTTPException(status_code=404, detail='User was not found')
+
+@router.get("/user_id/tasks")
+async def tasks_by_user_id(user_id:int, db: Annotated[Session, Depends(get_db)]):
+    user = db.scalar(select(User).where(User.id == user_id))
+    if user is not None:
+        tasks = db.scalars(select(Task).where(Task.user_id == user_id)).all()
+        return tasks
     else:
         raise HTTPException(status_code=404, detail='User was not found')
 
@@ -38,7 +47,7 @@ async def create_user(db: Annotated[Session, Depends(get_db)], create_user: Crea
 
 @router.put('/update')
 async def update_user(user_id: int, db: Annotated[Session, Depends(get_db)], upd_user: UpdateUser):
-    user = db.execute(select(User).where(User.id == user_id))
+    user = db.scalar(select(User).where(User.id == user_id))
     if user is None:
         raise HTTPException(status_code=404, detail='User was not found')
 
@@ -51,11 +60,12 @@ async def update_user(user_id: int, db: Annotated[Session, Depends(get_db)], upd
 
 
 @router.delete('/delete')
-async def delete_user(user_id: int, db: Annotated[Session, Depends(get_db)], upd_user: UpdateUser):
-    user = db.execute(select(User).where(User.id == user_id))
+async def delete_user(user_id: int, db: Annotated[Session, Depends(get_db)]):
+    user = db.scalar(select(User).where(User.id == user_id))
     if user is None:
         raise HTTPException(status_code=404, detail='User was not found')
     db.execute(delete(User).where(User.id == user_id))
+    db.execute(delete(Task).where(Task.user_id == user_id))
     db.commit()
     return {'status_code': status.HTTP_201_CREATED,
             'transaction': 'User deleted successfuly!'}
